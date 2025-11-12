@@ -1,10 +1,6 @@
-﻿using System;
-using System.Device.Gpio;
-using System.Net.Http;
-using System.Threading.Tasks;
+﻿using System.Device.Gpio;
 using Microsoft.Extensions.Configuration;
 using WiimController.Services;
-using Microsoft.Extensions.Configuration.Json;
 
 
 class Program
@@ -33,7 +29,7 @@ class Program
 
         if (isPi)
         {
-            await RunGpioMode(httpClient);
+            await RunGpioMode(_wiimService);
         }
         else
         {
@@ -64,10 +60,30 @@ class Program
                         break;
                     case ConsoleKey.D2:
                         Console.WriteLine("Button 2 simulated.");
+                        await wiimService.GetPlayerStatus();
+                        break;
+                    case ConsoleKey.D3:
+                        Console.WriteLine("Button 3 simulated.");
+                        //nothing
+                        await wiimService.Resume();
+                        break;
+                    case ConsoleKey.D4:
+                        Console.WriteLine("Button 4 simulated.");
+                        await wiimService.Pause();
+                        break;
+                    case ConsoleKey.D5:
+                        Console.WriteLine("Button 5 simulated.");
+                        //nothing
+                        var volume = 50;
+                        await wiimService.SetVolume(volume);
+                        break;
+                    case ConsoleKey.D6:
+                        Console.WriteLine("Button 6 simulated.");
                         await wiimService.PlayNextSong();
                         break;
                     default:
-                        Console.WriteLine("Invalid key. Use 1, 2, or Q to quit.");
+                        Console.WriteLine("7");
+                        await wiimService.PlayPreviousSong();
                         break;
                 }
             }
@@ -76,31 +92,51 @@ class Program
         }
     }
 
-    static async Task RunGpioMode(HttpClient httpClient)
+    static async Task RunGpioMode(WiimService wiimService)
     {
         using var controller = new GpioController();
 
-        int button1Pin = 17;
-        int button2Pin = 27;
+        int btnResume1Pin = 17;
+        int btnPause2Pin = 27;
+        int btnNext3Pin = 37;
+        int btnPrevious4Pin = 47;
 
-        controller.OpenPin(button1Pin, PinMode.InputPullUp);
-        controller.OpenPin(button2Pin, PinMode.InputPullUp);
+        //ToDo Rotary Knob for volume
+
+        controller.OpenPin(btnResume1Pin, PinMode.InputPullUp);
+        controller.OpenPin(btnPause2Pin, PinMode.InputPullUp);
+        controller.OpenPin(btnNext3Pin, PinMode.InputPullUp);
+        controller.OpenPin(btnPrevious4Pin, PinMode.InputPullUp);
 
         Console.WriteLine("Listening for GPIO button presses (Ctrl+C to exit)...");
 
         while (true)
         {
-            if (controller.Read(button1Pin) == PinValue.Low)
+            if (controller.Read(btnResume1Pin) == PinValue.Low)
             {
                 Console.WriteLine("Button 1 pressed.");
-                await httpClient.GetAsync("https://example.com/api/button1");
+                await wiimService.Resume();
                 await Task.Delay(500); // debounce
             }
 
-            if (controller.Read(button2Pin) == PinValue.Low)
+            if (controller.Read(btnPause2Pin) == PinValue.Low)
             {
                 Console.WriteLine("Button 2 pressed.");
-                await httpClient.GetAsync("https://example.com/api/button2");
+                await wiimService.Pause();
+                await Task.Delay(500);
+            }
+
+            if (controller.Read(btnNext3Pin) == PinValue.Low)
+            {
+                Console.WriteLine("Button 1 pressed.");
+                await wiimService.PlayNextSong();
+                await Task.Delay(500); // debounce
+            }
+
+            if (controller.Read(btnPrevious4Pin) == PinValue.Low)
+            {
+                Console.WriteLine("Button 2 pressed.");
+                await wiimService.PlayPreviousSong();
                 await Task.Delay(500);
             }
 
