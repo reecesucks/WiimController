@@ -96,46 +96,75 @@ class Program
     {
         using var controller = new GpioController();
 
-        int btnResume1Pin = 17;
-        int btnPause2Pin = 27;
-        int btnNext3Pin = 37;
-        int btnPrevious4Pin = 47;
+        
+        int btnNext3Pin = 26;
+        int btnPrevious4Pin = 23;
 
-        //ToDo Rotary Knob for volume
-
-        controller.OpenPin(btnResume1Pin, PinMode.InputPullUp);
-        controller.OpenPin(btnPause2Pin, PinMode.InputPullUp);
         controller.OpenPin(btnNext3Pin, PinMode.InputPullUp);
         controller.OpenPin(btnPrevious4Pin, PinMode.InputPullUp);
 
+        //ToDo Rotary Knob for volume
+        int s1Pin = 17;   // GPIO pin connected to S1
+        int s2Pin = 27;
+        int keyPin = 27;
+        
+        int lastS1 = 0;    
+        int lastS2 = 0;
+        int position = 0;
+
+        controller.OpenPin(s1Pin, PinMode.InputPullUp);
+        controller.OpenPin(s2Pin, PinMode.InputPullUp);
+        controller.OpenPin(keyPin, PinMode.InputPullUp);
+
         Console.WriteLine("Listening for GPIO button presses (Ctrl+C to exit)...");
+
+        lastS1 = (int)controller.Read(s1Pin);
+        lastS2 = (int)controller.Read(s2Pin);
 
         while (true)
         {
-            if (controller.Read(btnResume1Pin) == PinValue.Low)
+            int s1 = (int)controller.Read(s1Pin);
+            int s2 = (int)controller.Read(s2Pin);
+
+            // Detect rotation
+            if (s1 != lastS1 || s2 != lastS2)
             {
-                Console.WriteLine("Button 1 pressed.");
-                await wiimService.Resume();
-                await Task.Delay(500); // debounce
+                if (lastS1 == s2 && lastS2 != s1)
+                {
+                    position++;  // Clockwise
+                    Console.WriteLine($"Rotated CW. Position: {position}");
+                    wiimService.SetVolume(position);
+                }
+                else if (lastS2 == s1 && lastS1 != s2)
+                {
+                    position--;  // Counter-clockwise
+                    Console.WriteLine($"Rotated CCW. Position: {position}");
+                    wiimService.SetVolume(position);
+                }
+
+                lastS1 = s1;
+                lastS2 = s2;
             }
 
-            if (controller.Read(btnPause2Pin) == PinValue.Low)
+            // Detect button press
+            if (controller.Read(keyPin) == 0)  // Active-low button
             {
-                Console.WriteLine("Button 2 pressed.");
-                await wiimService.Pause();
-                await Task.Delay(500);
+                Console.WriteLine("Button pressed!");
+                Thread.Sleep(200);  // Debounce delay
             }
+
+
 
             if (controller.Read(btnNext3Pin) == PinValue.Low)
             {
-                Console.WriteLine("Button 1 pressed.");
+                Console.WriteLine("Button 3 pressed.");
                 await wiimService.PlayNextSong();
                 await Task.Delay(500); // debounce
             }
 
             if (controller.Read(btnPrevious4Pin) == PinValue.Low)
             {
-                Console.WriteLine("Button 2 pressed.");
+                Console.WriteLine("Button 4 pressed.");
                 await wiimService.PlayPreviousSong();
                 await Task.Delay(500);
             }
