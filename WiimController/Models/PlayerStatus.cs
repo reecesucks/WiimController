@@ -20,5 +20,7 @@
         public string Plicurr { get; set; }
         public string Vol { get; set; }
         public string Mute { get; set; }
+
+        public int Volume {get; set;}
     }
 }
