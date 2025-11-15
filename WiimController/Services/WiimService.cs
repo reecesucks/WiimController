@@ -125,6 +125,21 @@ namespace WiimController.Services
             }
         }
 
+        public async Task<WiimApiResult> PlayPlaylist(int preset)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"httpapi.asp?command=MCUKeyShortClick:{preset}d");
+                string text = await response.Content.ReadAsStringAsync();
+
+                return GetRequestResult(response.IsSuccessStatusCode, text);
+            }
+            catch (Exception ex)
+            {
+                return GetFailedResult(nameof(PlayPlaylist), ex);
+            }
+        }
+
         public async Task<WiimApiResult> Pause()
         {
             try
