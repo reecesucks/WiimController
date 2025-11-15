@@ -25,7 +25,7 @@ class Program
         using var httpClient = new HttpClient(handler);
 
         WiimService _wiimService = new WiimService(httpClient, baseUrl);
-
+        await _wiimService.SetPlayerStatus();
 
         if (isPi)
         {
