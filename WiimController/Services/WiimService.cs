@@ -7,6 +7,9 @@ namespace WiimController.Services
     public class WiimService
     {
         private readonly HttpClient _httpClient;
+        private  PlayerStatus _playerStatus;
+
+        public int Volume {get {return _playerStatus.Volume;} set {_playerStatus.Volume = value;}}
 
         public WiimService(HttpClient httpClient, string baseUrl)
         {
@@ -17,7 +20,17 @@ namespace WiimController.Services
             _httpClient = httpClient;
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("WiimController/1.0");
 
-            _httpClient.BaseAddress = new Uri(baseUrl);           
+            _httpClient.BaseAddress = new Uri(baseUrl);
+
+    
+        }
+
+        public async Task SetPlayerStatus()
+        {
+             _playerStatus = await GetPlayerStatus();  
+             int volume = 25;
+             int.TryParse(_playerStatus.Vol, out volume);
+             _playerStatus.Volume = volume;      
         }
 
         private WiimApiResult GetFailedResult(string endpoint, Exception ex) 
@@ -142,10 +155,27 @@ namespace WiimController.Services
             }
         }
 
+                public async Task<WiimApiResult> OnePause()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync("httpapi.asp?command=setPlayerCmd:onepause");
+                string jsonResponse = await response.Content.ReadAsStringAsync();
+
+                return GetRequestResult(response.IsSuccessStatusCode, jsonResponse);
+            }
+            catch (Exception ex)
+            {
+                return GetFailedResult(nameof(OnePause), ex);
+            }
+        }
+
         public async Task<WiimApiResult> SetVolume(int value)
         {
             try
             {
+                Console.WriteLine($"SetVolume  psvol: {_playerStatus.Volume}, value {value}");
+
                 var response = await _httpClient.GetAsync($"httpapi.asp?command=setPlayerCmd:vol:{value}");
                 string jsonResponse = await response.Content.ReadAsStringAsync();
 
