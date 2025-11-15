@@ -14,7 +14,7 @@ class Program
             .Build();
 
         var baseUrl = config["ApiSettings:BaseUrl"];
-       
+
         Console.WriteLine("Starting Button HTTP App...");
         bool isPi = Environment.OSVersion.Platform == PlatformID.Unix;
         Console.WriteLine(isPi ? "Running on Raspberry Pi (GPIO mode)" : "Running on Desktop (Keyboard mode)");
@@ -82,6 +82,10 @@ class Program
                         Console.WriteLine("Button 6 simulated.");
                         await wiimService.PlayNextSong();
                         break;
+                    case ConsoleKey.D8:
+                        Console.WriteLine("Button 8 simulated.");
+                        await wiimService.PlayPlaylist(1);
+                        break;
                     default:
                         Console.WriteLine("7");
                         await wiimService.PlayPreviousSong();
@@ -99,9 +103,11 @@ class Program
 
         int btnNext3Pin = 26;
         int btnPrevious4Pin = 23;
-
+        int btnPlaylist = 25;
+       
         controller.OpenPin(btnNext3Pin, PinMode.InputPullUp);
         controller.OpenPin(btnPrevious4Pin, PinMode.InputPullUp);
+        controller.OpenPin(btnPlaylist, PinMode.InputPullUp);
 
         //ToDo Rotary Knob for volume
         var encoder = new RotaryEncoder(
@@ -121,14 +127,21 @@ class Program
             {
                 Console.WriteLine("Button 3 pressed.");
                 await wiimService.PlayNextSong();
-                await Task.Delay(500); // debounce
+                await Task.Delay(50);
             }
 
             if (controller.Read(btnPrevious4Pin) == PinValue.Low)
             {
                 Console.WriteLine("Button 4 pressed.");
                 await wiimService.PlayPreviousSong();
-                await Task.Delay(500);
+                await Task.Delay(50);
+            }
+
+            if (controller.Read(btnPlaylist) == PinValue.Low)
+            {
+                Console.WriteLine("Button playlist pressed.");
+                await wiimService.PlayPlaylist(1);
+                await Task.Delay(50);
             }
 
             await Task.Delay(50);
