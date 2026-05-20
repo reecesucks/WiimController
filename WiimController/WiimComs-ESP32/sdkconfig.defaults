@@ -1,0 +1,12 @@
+# ---- Project defaults for WiimComs-ESP32 ----
+
+# Wiim presents a self-signed cert on https://. Match the .NET app's
+# DangerousAcceptAnyServerCertificateValidator behavior.
+CONFIG_ESP_TLS_INSECURE=y
+CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY=y
+
+# Headroom for TLS + JSON parsing on the main task spawning the worker.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# 1 ms tick lets vTaskDelay(pdMS_TO_TICKS(...)) match millisecond intent.
+CONFIG_FREERTOS_HZ=1000
