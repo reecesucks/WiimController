@@ -1,1 +1,23 @@
 ﻿appsettings.json
+
+# Visual Studio
+.vs/
+bin/
+obj/
+
+# PlatformIO
+.pio/
+.vscode/
+
+# CMake / C++ build outputs
+build/
+build-win/
+cmake-build-debug/
+cmake-build-release/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
