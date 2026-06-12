@@ -8,6 +8,12 @@
 #include "models/MusicTrack.h"
 #include "models/WiimApiResult.h"
 
+// Port of WiimComs.Services.WiimController.Services.WiimService.
+// Methods are blocking; on ESP32 they should be called from a FreeRTOS task,
+// not from app_main() directly when responsiveness matters.
+//
+// HTTP I/O is delegated to an IHttpClient implementation so the same logic can
+// run on ESP32 (esp_http_client) and on Windows (WinHTTP) for debugging.
 class WiimService {
 public:
     WiimService(IHttpClient* http, const std::string& baseUrl);

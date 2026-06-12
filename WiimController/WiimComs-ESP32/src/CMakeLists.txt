@@ -4,6 +4,9 @@ idf_component_register(
         "WiimService.cpp"
         "models/DeviceStatus.cpp"
         "platform/esp/EspHttpClient.cpp"
+        "platform/esp/BoardLed.cpp"
+        "platform/esp/Buttons.cpp"
+        "platform/esp/RotaryEncoder.cpp"
     INCLUDE_DIRS
         "."
     REQUIRES
@@ -12,4 +15,6 @@ idf_component_register(
         esp_netif
         esp_wifi
         esp_http_client
+        esp_timer
+        driver
 )

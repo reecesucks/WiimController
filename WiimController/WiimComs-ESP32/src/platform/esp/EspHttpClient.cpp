@@ -29,6 +29,8 @@ bool EspHttpClient::get(const std::string& url, std::string& bodyOut, int& httpC
 
     const bool useTls = startsWith(url, "https://");
 
+    ESP_LOGI(TAG, "GET %s", url.c_str());
+
     esp_http_client_config_t config = {};
     config.url                          = url.c_str();
     config.method                       = HTTP_METHOD_GET;
@@ -43,15 +45,16 @@ bool EspHttpClient::get(const std::string& url, std::string& bodyOut, int& httpC
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
     if (!client) {
-        ESP_LOGE(TAG, "esp_http_client_init failed for %s", url.c_str());
+        ESP_LOGE(TAG, "  esp_http_client_init failed");
         return false;
     }
 
     esp_err_t err = esp_http_client_perform(client);
     if (err == ESP_OK) {
         httpCodeOut = esp_http_client_get_status_code(client);
+        ESP_LOGI(TAG, "  -> HTTP %d (%d bytes)", httpCodeOut, (int)bodyOut.size());
     } else {
-        ESP_LOGW(TAG, "perform failed for %s: %s", url.c_str(), esp_err_to_name(err));
+        ESP_LOGW(TAG, "  -> transport failed: %s", esp_err_to_name(err));
         bodyOut.clear();
     }
 
