@@ -29,6 +29,20 @@ bool iequalsAscii(const std::string& a, const char* b) {
     }
     return true;
 }
+
+// Print up to the first 1024 chars of a response body, with a length header.
+// Long enough to inspect a getStatusEx payload without flooding the log.
+void logBodySnippet(const std::string& body) {
+    constexpr size_t kMax = 1024;
+    if (body.size() <= kMax) {
+        ESP_LOGI(TAG, "  body (%u bytes): %s",
+                 (unsigned)body.size(), body.c_str());
+    } else {
+        std::string head = body.substr(0, kMax);
+        ESP_LOGI(TAG, "  body (%u bytes, showing first %u): %s ... [truncated]",
+                 (unsigned)body.size(), (unsigned)kMax, head.c_str());
+    }
+}
 }  // namespace
 
 WiimService::WiimService(IHttpClient* http, const std::string& baseUrl)
@@ -43,7 +57,12 @@ bool WiimService::httpGet(const std::string& path, std::string& bodyOut, int& ht
         ESP_LOGE(TAG, "no IHttpClient configured");
         return false;
     }
-    return _http->get(_baseUrl + path, bodyOut, httpCodeOut);
+    const std::string url = _baseUrl + path;
+    ESP_LOGI(TAG, "httpGet: %s", url.c_str());
+    bool ok = _http->get(url, bodyOut, httpCodeOut);
+    ESP_LOGI(TAG, "httpGet: ok=%d code=%d bodyBytes=%u",
+             ok ? 1 : 0, httpCodeOut, (unsigned)bodyOut.size());
+    return ok;
 }
 
 WiimApiResult WiimService::makeFailed(const std::string& message) {
@@ -78,32 +97,63 @@ bool WiimService::setPlayerStatus() {
 }
 
 bool WiimService::getDeviceStatus(DeviceStatus& out) {
+    ESP_LOGI(TAG, "getDeviceStatus: start");
+
     std::string body;
     int         code = 0;
-    if (!httpGet("httpapi.asp?command=getStatusEx", body, code) || code < 200 || code >= 300) {
+    if (!httpGet("httpapi.asp?command=getStatusEx", body, code)) {
+        ESP_LOGW(TAG, "getDeviceStatus: HTTP transport failed");
         return false;
     }
+    if (code < 200 || code >= 300) {
+        ESP_LOGW(TAG, "getDeviceStatus: bad HTTP status %d", code);
+        logBodySnippet(body);
+        return false;
+    }
+    logBodySnippet(body);
 
+    ESP_LOGI(TAG, "getDeviceStatus: parsing JSON (%u bytes)...", (unsigned)body.size());
     JsonDocument doc;
     auto err = deserializeJson(doc, body);
-    if (err) return false;
+    if (err) {
+        ESP_LOGE(TAG, "getDeviceStatus: JSON parse failed: %s", err.c_str());
+        return false;
+    }
+    ESP_LOGI(TAG, "getDeviceStatus: JSON parsed OK, populating DeviceStatus...");
 
     out = DeviceStatus::fromJson(doc.as<JsonObjectConst>());
+
+    ESP_LOGI(TAG, "getDeviceStatus: done (deviceName='%s')", out.deviceName.c_str());
     return true;
 }
 
 bool WiimService::getPlayerStatus(PlayerStatus& out) {
+    ESP_LOGI(TAG, "getPlayerStatus: start");
+
     std::string body;
     int         code = 0;
-    if (!httpGet("httpapi.asp?command=getPlayerStatus", body, code) || code < 200 || code >= 300) {
+    if (!httpGet("httpapi.asp?command=getPlayerStatus", body, code)) {
+        ESP_LOGW(TAG, "getPlayerStatus: HTTP transport failed");
+        return false;
+    }
+    if (code < 200 || code >= 300) {
+        ESP_LOGW(TAG, "getPlayerStatus: bad HTTP status %d", code);
+        logBodySnippet(body);
+        return false;
+    }
+    logBodySnippet(body);
+
+    ESP_LOGI(TAG, "getPlayerStatus: parsing JSON (%u bytes)...", (unsigned)body.size());
+    JsonDocument doc;
+    auto err = deserializeJson(doc, body);
+    if (err) {
+        ESP_LOGE(TAG, "getPlayerStatus: JSON parse failed: %s", err.c_str());
         return false;
     }
 
-    JsonDocument doc;
-    auto err = deserializeJson(doc, body);
-    if (err) return false;
-
     out = PlayerStatus::fromJson(doc.as<JsonObjectConst>());
+
+    ESP_LOGI(TAG, "getPlayerStatus: done (vol=%d)", out.volume);
     return true;
 }
 
@@ -140,16 +190,31 @@ WiimApiResult WiimService::setVolume(int value) {
 }
 
 bool WiimService::getSongMetaData(MusicTrack& out) {
+    ESP_LOGI(TAG, "getSongMetaData: start");
+
     std::string body;
     int         code = 0;
-    if (!httpGet("httpapi.asp?command=getMetaInfo", body, code) || code < 200 || code >= 300) {
+    if (!httpGet("httpapi.asp?command=getMetaInfo", body, code)) {
+        ESP_LOGW(TAG, "getSongMetaData: HTTP transport failed");
+        return false;
+    }
+    if (code < 200 || code >= 300) {
+        ESP_LOGW(TAG, "getSongMetaData: bad HTTP status %d", code);
+        logBodySnippet(body);
+        return false;
+    }
+    logBodySnippet(body);
+
+    ESP_LOGI(TAG, "getSongMetaData: parsing JSON (%u bytes)...", (unsigned)body.size());
+    JsonDocument doc;
+    auto err = deserializeJson(doc, body);
+    if (err) {
+        ESP_LOGE(TAG, "getSongMetaData: JSON parse failed: %s", err.c_str());
         return false;
     }
 
-    JsonDocument doc;
-    auto err = deserializeJson(doc, body);
-    if (err) return false;
-
     out = MusicTrack::fromJson(doc.as<JsonObjectConst>());
+
+    ESP_LOGI(TAG, "getSongMetaData: done (title='%s')", out.metaData.title.c_str());
     return true;
 }

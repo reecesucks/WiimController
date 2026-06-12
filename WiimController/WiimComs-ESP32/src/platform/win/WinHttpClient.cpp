@@ -47,6 +47,8 @@ bool WinHttpClient::get(const std::string& url, std::string& bodyOut, int& httpC
 
     if (!_session) return false;
 
+    ESP_LOGI(TAG, "GET %s", url.c_str());
+
     std::wstring wurl = toWide(url);
 
     URL_COMPONENTS uc = {};
@@ -131,6 +133,7 @@ bool WinHttpClient::get(const std::string& url, std::string& bodyOut, int& httpC
             if (!WinHttpReadData(req, buf.data(), avail, &read) || read == 0) break;
             bodyOut.append(buf.data(), read);
         }
+        ESP_LOGI(TAG, "  -> HTTP %d (%u bytes)", httpCodeOut, (unsigned)bodyOut.size());
     } else {
         ESP_LOGW(TAG, "request failed for %s: %lu", url.c_str(), GetLastError());
     }
