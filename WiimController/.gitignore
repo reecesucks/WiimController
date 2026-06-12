@@ -26,3 +26,4 @@ secrets.h
 .claude
 CLAUDE.md
 .gitignore
+managed_components

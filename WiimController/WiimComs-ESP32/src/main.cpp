@@ -28,6 +28,7 @@
 #include "platform/esp/Buttons.h"
 #include "platform/esp/EspHttpClient.h"
 #include "platform/esp/RotaryEncoder.h"
+#include "platform/esp/WebServer.h"
 
 namespace {
 constexpr const char* TAG = "wiim";
@@ -198,7 +199,7 @@ extern "C" void app_main() {
     ESP_LOGI(TAG, "   SSID:       %s", WIFI_SSID);
     ESP_LOGI(TAG, "===========================================");
 
-    ESP_LOGI(TAG, "[1/4] init NVS");
+    ESP_LOGI(TAG, "[1/6] init NVS");
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_LOGW(TAG, "  NVS partition needed erasing");
@@ -208,16 +209,22 @@ extern "C" void app_main() {
     ESP_ERROR_CHECK(err);
     ESP_LOGI(TAG, "  -> NVS ready");
 
-    ESP_LOGI(TAG, "[2/4] connect WiFi");
+    ESP_LOGI(TAG, "[2/6] connect WiFi");
     connectWifi();
     ESP_LOGI(TAG, "  -> WiFi connected");
 
-    ESP_LOGI(TAG, "[3/4] init HTTP client + WiimService");
+    ESP_LOGI(TAG, "[3/6] init mDNS");
+    initMdns("wiim-controller");
+
+    ESP_LOGI(TAG, "[4/6] startWebServer");
+    startWebServer();
+
+    ESP_LOGI(TAG, "[5/6] init HTTP client + WiimService");
     g_http = std::make_unique<EspHttpClient>();
     g_wiim = std::make_unique<WiimService>(g_http.get(), WIIM_BASE_URL);
     ESP_LOGI(TAG, "  -> ready");
 
-    ESP_LOGI(TAG, "[4/4] start wiim task");
+    ESP_LOGI(TAG, "[6/6] start wiim task");
     // 16 KB stack: mbedTLS HTTPS handshakes need ~10-15 KB during the TLS step,
     // plus DeviceStatus (~100 std::strings) lives on this task's stack as a
     // local. 8 KB overflows; 16 KB leaves comfortable headroom.
