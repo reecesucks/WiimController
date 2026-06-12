@@ -21,3 +21,8 @@ cmake-build-release/
 # OS files
 .DS_Store
 Thumbs.db
+
+secrets.h
+.claude
+CLAUDE.md
+.gitignore
