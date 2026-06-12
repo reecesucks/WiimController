@@ -8,6 +8,7 @@ idf_component_register(
         "platform/esp/BoardLed.cpp"
         "platform/esp/Buttons.cpp"
         "platform/esp/RotaryEncoder.cpp"
+        "platform/esp/WebServer.cpp"
     INCLUDE_DIRS
         "."
     REQUIRES
@@ -18,4 +19,6 @@ idf_component_register(
         esp_http_client
         esp_timer
         driver
+        esp_http_server
+        mdns
 )
