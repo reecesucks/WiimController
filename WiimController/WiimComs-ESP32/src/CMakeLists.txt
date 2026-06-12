@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
         "main.cpp"
         "WiimService.cpp"
+        "PlaybackController.cpp"
         "models/DeviceStatus.cpp"
         "platform/esp/EspHttpClient.cpp"
         "platform/esp/BoardLed.cpp"

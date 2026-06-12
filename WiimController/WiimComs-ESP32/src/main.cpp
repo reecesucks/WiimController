@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cstring>
+#include <memory>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -22,6 +23,7 @@
 #endif
 
 #include "WiimService.h"
+#include "PlaybackController.h"
 #include "platform/esp/BoardLed.h"
 #include "platform/esp/Buttons.h"
 #include "platform/esp/EspHttpClient.h"
@@ -45,8 +47,8 @@ constexpr int VOLUME_STEP = 5;   // % per detent
 // --------------------------------------------------------------------------
 
 EventGroupHandle_t s_wifi_event_group = nullptr;
-EspHttpClient*     g_http             = nullptr;
-WiimService*       g_wiim             = nullptr;
+std::unique_ptr<EspHttpClient> g_http;
+std::unique_ptr<WiimService>   g_wiim;
 
 void wifiEventHandler(void* /*arg*/, esp_event_base_t base, int32_t id, void* data) {
     if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
@@ -98,20 +100,6 @@ void connectWifi() {
     }
 }
 
-int clampVolume(int v) {
-    if (v < 0)   return 0;
-    if (v > 100) return 100;
-    return v;
-}
-
-void logApiResult(const char* what, const WiimApiResult& r) {
-    if (r.success) {
-        ESP_LOGI(TAG, "  -> %s OK", what);
-    } else {
-        ESP_LOGW(TAG, "  -> %s FAILED: %s", what, r.message.c_str());
-    }
-}
-
 void wiimTask(void* /*pv*/) {
     ESP_LOGI(TAG, "=== wiim task started ===");
 
@@ -150,27 +138,15 @@ void wiimTask(void* /*pv*/) {
     ESP_LOGI(TAG, "  next    -> GPIO%d", PIN_BTN_NEXT);
     ESP_LOGI(TAG, "  rot SW  -> GPIO%d", PIN_ROT_SW);
 
+    // The controller owns "what each input does"; main.cpp just wires hardware
+    // events to it (plus a short LED blink as visual feedback).
+    PlaybackController controller(*g_wiim, VOLUME_STEP);
+
     Buttons buttons;
-    buttons.add(PIN_BTN_PREV, [&led] {
-        ESP_LOGI(TAG, "btn: prev pressed");
-        led.blink();
-        logApiResult("playPreviousSong", g_wiim->playPreviousSong());
-    });
-    buttons.add(PIN_BTN_PLAY, [&led] {
-        ESP_LOGI(TAG, "btn: play/pause pressed");
-        led.blink();
-        logApiResult("onePause", g_wiim->onePause());
-    });
-    buttons.add(PIN_BTN_NEXT, [&led] {
-        ESP_LOGI(TAG, "btn: next pressed");
-        led.blink();
-        logApiResult("playNextSong", g_wiim->playNextSong());
-    });
-    buttons.add(PIN_ROT_SW, [&led] {
-        ESP_LOGI(TAG, "rotary: knob pressed (play/pause)");
-        led.blink();
-        logApiResult("onePause", g_wiim->onePause());
-    });
+    buttons.add(PIN_BTN_PREV, [&] { led.blink(); controller.onPrevious(); });
+    buttons.add(PIN_BTN_PLAY, [&] { led.blink(); controller.onPlayPause(); });
+    buttons.add(PIN_BTN_NEXT, [&] { led.blink(); controller.onNext(); });
+    buttons.add(PIN_ROT_SW,   [&] { led.blink(); controller.onPlayPause(); });
     buttons.begin();
 
     // Dump initial pin states so user can sanity-check wiring.
@@ -183,16 +159,9 @@ void wiimTask(void* /*pv*/) {
     ESP_LOGI(TAG, "  rot SW (GPIO%d) = %d", PIN_ROT_SW,   gpio_get_level(PIN_ROT_SW));
 
     ESP_LOGI(TAG, "wiring rotary: CLK->GPIO%d, DT->GPIO%d", PIN_ROT_CLK, PIN_ROT_DT);
-    RotaryEncoder rotary(PIN_ROT_CLK, PIN_ROT_DT, [&led](int delta) {
+    RotaryEncoder rotary(PIN_ROT_CLK, PIN_ROT_DT, [&](int delta) {
         led.blink(30);
-        int v = clampVolume(g_wiim->volume() + delta * VOLUME_STEP);
-        ESP_LOGI(TAG, "rotary: turn  delta=%+d  volume %d -> %d",
-                 delta, g_wiim->volume(), v);
-        auto r = g_wiim->setVolume(v);
-        logApiResult("setVolume", r);
-        if (r.success) {
-            g_wiim->setCachedVolume(v);
-        }
+        controller.onVolumeChange(delta);
     });
     rotary.begin();
     ESP_LOGI(TAG, "rotary initial CLK/DT levels: %d/%d  (any combo is fine; just noting state)",
@@ -244,8 +213,8 @@ extern "C" void app_main() {
     ESP_LOGI(TAG, "  -> WiFi connected");
 
     ESP_LOGI(TAG, "[3/4] init HTTP client + WiimService");
-    g_http = new EspHttpClient();
-    g_wiim = new WiimService(g_http, WIIM_BASE_URL);
+    g_http = std::make_unique<EspHttpClient>();
+    g_wiim = std::make_unique<WiimService>(g_http.get(), WIIM_BASE_URL);
     ESP_LOGI(TAG, "  -> ready");
 
     ESP_LOGI(TAG, "[4/4] start wiim task");
