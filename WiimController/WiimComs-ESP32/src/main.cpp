@@ -29,6 +29,7 @@
 #include "platform/esp/EspHttpClient.h"
 #include "platform/esp/RotaryEncoder.h"
 #include "platform/esp/WebServer.h"
+#include "platform/esp/Config.h"
 
 namespace {
 constexpr const char* TAG = "wiim";
@@ -64,7 +65,7 @@ void wifiEventHandler(void* /*arg*/, esp_event_base_t base, int32_t id, void* da
     }
 }
 
-void connectWifi() {
+void connectWifi(const AppConfig& cfg) {
     s_wifi_event_group = xEventGroupCreate();
 
     ESP_ERROR_CHECK(esp_netif_init());
@@ -81,9 +82,9 @@ void connectWifi() {
 
     wifi_config_t wifi_config = {};
     std::strncpy(reinterpret_cast<char*>(wifi_config.sta.ssid),
-                 WIFI_SSID, sizeof(wifi_config.sta.ssid) - 1);
+                 cfg.wifiSsid.c_str(), sizeof(wifi_config.sta.ssid) - 1);
     std::strncpy(reinterpret_cast<char*>(wifi_config.sta.password),
-                 WIFI_PASSWORD, sizeof(wifi_config.sta.password) - 1);
+                 cfg.wifiPassword.c_str(), sizeof(wifi_config.sta.password) - 1);
     wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
@@ -210,7 +211,9 @@ extern "C" void app_main() {
     ESP_LOGI(TAG, "  -> NVS ready");
 
     ESP_LOGI(TAG, "[2/6] connect WiFi");
-    connectWifi();
+    AppConfig cfg = loadConfig();
+    ESP_LOGI(TAG, "ssid='%s' url='%s'", cfg.wifiSsid.c_str(), cfg.wiimBaseUrl.c_str());
+    connectWifi(cfg);
     ESP_LOGI(TAG, "  -> WiFi connected");
 
     ESP_LOGI(TAG, "[3/6] init mDNS");

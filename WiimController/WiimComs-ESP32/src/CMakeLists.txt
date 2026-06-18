@@ -9,6 +9,7 @@ idf_component_register(
         "platform/esp/Buttons.cpp"
         "platform/esp/RotaryEncoder.cpp"
         "platform/esp/WebServer.cpp"
+        "platform/esp/Config.cpp"
     INCLUDE_DIRS
         "."
     REQUIRES
